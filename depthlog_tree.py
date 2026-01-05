@@ -47,7 +47,7 @@ def _unquote(s: str) -> str:
                     i += 2
                     continue
                 if n == "x" and i + 3 < len(body):
-                    hx = body[i + 2 : i + 4]
+                    hx = body[i + 2: i + 4]
                     try:
                         out.append(chr(int(hx, 16)))
                         i += 4
@@ -147,9 +147,18 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("logfile", help="path to app.log")
     ap.add_argument("--only-tid", default=None, help="show only this tid")
-    ap.add_argument("--show-msg", action="store_true", help="include msg in node labels")
-    ap.add_argument("--no-collapse", action="store_true", help="do not collapse identical consecutive nodes")
-    ap.add_argument("--max-lines", type=int, default=0, help="process at most N lines (0 = all)")
+    ap.add_argument(
+        "--show-msg",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="include msg in node labels"
+    )
+    ap.add_argument("--collapse",
+                    action=argparse.BooleanOptionalAction,
+                    default=True,
+                    help="do not collapse identical consecutive nodes")
+    ap.add_argument("--max-lines", type=int, default=0,
+                    help="process at most N lines (0 = all)")
     args = ap.parse_args()
 
     roots: Dict[str, Node] = {}
@@ -199,7 +208,7 @@ def main() -> None:
                 stack=stacks[tid],
                 ev=ev,
                 show_msg=args.show_msg,
-                collapse=not args.no_collapse,
+                collapse=args.collapse,
             )
 
     # Print
@@ -213,4 +222,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
