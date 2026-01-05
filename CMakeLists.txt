@@ -4,6 +4,20 @@ if(DEPTHLOG_FETCH_SPDLOG)
   include(FetchContent)
   find_package(spdlog QUIET CONFIG)
   if(NOT spdlog_FOUND)
+    # Ensure fetched dependencies build with PIC (needed if they end up in a .so)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+    # spdlog options (avoid surprises)
+    set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(SPDLOG_BUILD_PIC ON CACHE BOOL "" FORCE)
+
+    # If spdlog builds/uses bundled fmt, ensure it is PIC as well
+    # (Some setups use FMT_* options; harmless if ignored)
+    set(FMT_DOC OFF CACHE BOOL "" FORCE)
+    set(FMT_TEST OFF CACHE BOOL "" FORCE)
+    set(FMT_INSTALL OFF CACHE BOOL "" FORCE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "" FORCE)
+
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -23,7 +37,6 @@ target_include_directories(depthlog INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-# IMPORTANT: Use generator expressions so install/export doesn't try to "own" spdlog
 target_link_libraries(depthlog INTERFACE
   $<BUILD_INTERFACE:spdlog::spdlog>
   $<INSTALL_INTERFACE:spdlog::spdlog>
