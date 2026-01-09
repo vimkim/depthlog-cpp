@@ -2,8 +2,11 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/pattern_formatter.h>
-
+#include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 #include <memory>
+#include <iomanip>
 
 namespace depthlog {
 
@@ -36,7 +39,7 @@ public:
 inline void install_depth_flag(std::string pattern =
   R"(ts="%Y-%m-%dT%H:%M:%S.%e%z" level=%l depth=%D tid=%t file="%s" line=%# func="%!" msg="%v")")
 {
-  auto fmtter = std::make_unique<spdlog::pattern_formatter>();
+  auto fmtter = spdlog::details::make_unique<spdlog::pattern_formatter>();
   fmtter->add_flag<depth_flag>('D');
   fmtter->set_pattern(std::move(pattern));
   spdlog::set_formatter(std::move(fmtter));
