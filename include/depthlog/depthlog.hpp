@@ -92,8 +92,18 @@ public:
     // Build "<spaces><original payload>"
     std::string spaces(indent, ' ');
 
+    // Extract function name (may be empty if source_location disabled)
+    spdlog::string_view_t fn = msg.source.funcname;
+    bool has_fn = (fn.size() > 0);
+
+    // Build "<spaces>[func] <original payload>"
     spdlog::memory_buf_t buf;
     buf.append(spaces.data(), spaces.data() + spaces.size());
+
+    if (has_fn) {
+      buf.append(fn.data(), fn.data() + fn.size());
+    }
+
     buf.append(msg.payload.data(), msg.payload.data() + msg.payload.size());
 
     // Copy msg and point payload to our temporary buffer
@@ -127,7 +137,7 @@ inline void init(const std::string &log_file_prefix) {
 
   auto stderr_sink = std::make_shared<depthlog::stderr_indent_color_sink_mt>(4);
 
-  stderr_sink->set_pattern(R"(%H:%M:%S.%e [%^%4!L%$] %10s:%# %20! | %v)");
+  stderr_sink->set_pattern(R"(%H:%M:%S.%e [%^%1!L%$] %10s:%# | %v)");
 
   auto lg = std::make_shared<spdlog::logger>(
       "main", spdlog::sinks_init_list{file_sink, stderr_sink});
