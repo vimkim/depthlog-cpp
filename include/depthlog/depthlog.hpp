@@ -229,7 +229,7 @@ inline void init(const std::string &log_file_prefix) {
 
   auto stderr_sink = std::make_shared<depthlog::stderr_indent_color_sink_mt>(4);
 
-  stderr_sink->set_pattern(R"(%H:%M:%S.%e [%^%1!L%$] %10s:%# | %v)");
+  stderr_sink->set_pattern(R"(%H:%M:%S [%^%1!L%$] %20s:%-6# | %v)");
 
   auto lg = std::make_shared<spdlog::logger>(
       "main", spdlog::sinks_init_list{file_sink, stderr_sink});
