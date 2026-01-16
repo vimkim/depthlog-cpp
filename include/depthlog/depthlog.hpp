@@ -4,7 +4,10 @@
 #include "sstream"
 #include <iomanip>
 #include <memory>
+#include <spdlog/details/log_msg.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/pattern_formatter.h>
+#include <spdlog/sinks/ansicolor_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
@@ -75,47 +78,136 @@ inline const std::string make_log_filename(const std::string &prefix) {
 class stderr_indent_color_sink_mt final
     : public spdlog::sinks::ansicolor_stderr_sink_mt {
 public:
-  explicit stderr_indent_color_sink_mt(std::size_t spaces_per_depth = 4)
-      : spaces_per_depth_(spaces_per_depth) {}
+  explicit stderr_indent_color_sink_mt(std::size_t spaces_per_depth = 4,
+                                       std::string fn_color = "cyan")
+      : spaces_per_depth_(spaces_per_depth),
+        fn_color_code_(std::move(fn_color)) {}
 
-  // NOTE: ansicolor_* sinks override sink::log(), not base_sink::sink_it_()
+  void set_spaces_per_depth(std::size_t v) noexcept { spaces_per_depth_ = v; }
+  void set_fn_color(std::string color) {
+    fn_color_code_ = std::move(color);
+  } // e.g. "cyan", "yellow", "bright_magenta"
+
   void log(const spdlog::details::log_msg &msg) override {
+    // Fast path: no indent and no funcname decoration needed.
     const int d = depthlog::depth();
     const std::size_t indent =
         (d > 0) ? static_cast<std::size_t>(d) * spaces_per_depth_ : 0;
 
-    if (indent == 0) {
+    const spdlog::string_view_t fn = msg.source.funcname;
+    const bool has_fn = fn.size() > 0;
+
+    if (indent == 0 && !has_fn) {
       spdlog::sinks::ansicolor_stderr_sink_mt::log(msg);
       return;
     }
 
-    // Build "<spaces><original payload>"
-    std::string spaces(indent, ' ');
-
-    // Extract function name (may be empty if source_location disabled)
-    spdlog::string_view_t fn = msg.source.funcname;
-    bool has_fn = (fn.size() > 0);
-
-    // Build "<spaces>[func] <original payload>"
+    // Build: "<spaces><colored funcname>: <original payload>"
     spdlog::memory_buf_t buf;
-    buf.append(spaces.data(), spaces.data() + spaces.size());
+
+    if (indent) {
+      // Avoid allocating a std::string for spaces.
+      // 64 is arbitrary; chunked append keeps it efficient.
+      static constexpr char kSpaces[64] =
+          "                                                               ";
+      std::size_t remaining = indent;
+      while (remaining) {
+        const std::size_t n = (remaining > sizeof(kSpaces) - 1)
+                                  ? (sizeof(kSpaces) - 1)
+                                  : remaining;
+        buf.append(kSpaces, kSpaces + n);
+        remaining -= n;
+      }
+    }
 
     if (has_fn) {
+      append_ansi_color_code_(buf, fn_color_code_);
       buf.append(fn.data(), fn.data() + fn.size());
+      buf.append(reset.data(), reset.data() + reset.size());
+
+      // separator
+      buf.push_back(':');
+      buf.push_back(' ');
     }
 
     buf.append(msg.payload.data(), msg.payload.data() + msg.payload.size());
 
-    // Copy msg and point payload to our temporary buffer
-    auto msg2 = msg;
+    // Preserve msg metadata; just swap payload.
+    spdlog::details::log_msg msg2 = msg;
     msg2.payload = spdlog::string_view_t(buf.data(), buf.size());
 
-    // Delegate to base (keeps %^...%$ coloring behavior)
+    // Delegate so the formatter still honors %^...%$ for the rest of the line.
     spdlog::sinks::ansicolor_stderr_sink_mt::log(msg2);
   }
 
 private:
-  std::size_t spaces_per_depth_;
+  static void append_spaces_(spdlog::memory_buf_t &buf, std::size_t n) {
+    // 64 visible spaces (NOT NUL-terminated); avoid string-literal size issues.
+    static constexpr char kSpaces[] = "                                        "
+                                      "                        "; // 64
+    static_assert(sizeof(kSpaces) == 65, "kSpaces must be 64 spaces + NUL");
+
+    while (n) {
+      const std::size_t chunk = (n > 64) ? 64 : n;
+      buf.append(kSpaces, kSpaces + chunk);
+      n -= chunk;
+    }
+  }
+
+  static void append_reset_(spdlog::memory_buf_t &buf) {
+    // ANSI SGR reset
+    static constexpr char kReset[] = "\x1b[0m";
+    buf.append(kReset, kReset + (sizeof(kReset) - 1));
+  }
+
+  static void append_ansi_color_code_(spdlog::memory_buf_t &buf,
+                                      const std::string &name) {
+    // Minimal named-color mapping (extend as you like).
+    // Uses standard SGR color codes. "bright_*" uses 90-97.
+    const char *code = nullptr;
+
+    if (name == "black")
+      code = "\x1b[30m";
+    else if (name == "red")
+      code = "\x1b[31m";
+    else if (name == "green")
+      code = "\x1b[32m";
+    else if (name == "yellow")
+      code = "\x1b[33m";
+    else if (name == "blue")
+      code = "\x1b[34m";
+    else if (name == "magenta")
+      code = "\x1b[35m";
+    else if (name == "cyan")
+      code = "\x1b[36m";
+    else if (name == "white")
+      code = "\x1b[37m";
+    else if (name == "bright_black")
+      code = "\x1b[90m";
+    else if (name == "bright_red")
+      code = "\x1b[91m";
+    else if (name == "bright_green")
+      code = "\x1b[92m";
+    else if (name == "bright_yellow")
+      code = "\x1b[93m";
+    else if (name == "bright_blue")
+      code = "\x1b[94m";
+    else if (name == "bright_magenta")
+      code = "\x1b[95m";
+    else if (name == "bright_cyan")
+      code = "\x1b[96m";
+    else if (name == "bright_white")
+      code = "\x1b[97m";
+    // If unknown or empty -> no color
+
+    if (!code)
+      return;
+    buf.append(code, code + std::char_traits<char>::length(code));
+  }
+
+private:
+  std::size_t spaces_per_depth_{4};
+  std::string fn_color_code_{"cyan"};
 };
 
 constexpr auto max_size = 20ull * 1024 * 1024 * 1024; // 20GB
