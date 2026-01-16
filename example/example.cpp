@@ -63,19 +63,7 @@ static void thread_entry(int idx) {
 }
 
 int main() {
-  // Single file sink; log lines include tid=%t so you can see per-thread depth.
-  // (If you want per-thread files, use per-thread loggers/sinks instead.)
-  auto lg = spdlog::basic_logger_mt("main", "app.log");
-  spdlog::set_default_logger(lg);
-
-  // Install a logfmt-ish pattern including depth=%D (provided by depthlog).
-  // %! = function name, %# = line, %s = basename(file), %t = thread id.
-  depthlog::install_depth_flag(
-      R"(ts="%Y-%m-%dT%H:%M:%S.%e%z" level=%l depth=%D tid=%t file="%s" line=%# func="%!" msg="%v")");
-
-  spdlog::set_level(spdlog::level::info);
-  spdlog::flush_on(spdlog::level::info);
-
+  depthlog::init("main");
   SPDLOG_INFO("main: starting");
 
   // Main thread call tree
