@@ -107,17 +107,28 @@ def add_event_to_tree(
     show_msg: bool,
     collapse: bool,
 ) -> None:
-    """
-    stack contains tuples of (depth, node) representing current path.
-    root is depth -1 virtual root.
-    """
-    # Pop until parent depth == ev.depth - 1
+    # Pop until parent depth == ev.depth - 1 (or closest available ancestor)
     while stack and stack[-1][0] >= ev.depth:
         stack.pop()
+
+    # Current depth on stack (virtual root is -1)
+    cur_depth = stack[-1][0] if stack else -1
     parent = stack[-1][1] if stack else root
 
+    # If depth jumped by >1, insert intermediate "gap" nodes
+    # so indentation matches absolute depth.
+    if ev.depth > cur_depth + 1:
+        for d in range(cur_depth + 1, ev.depth):
+            gap_lbl = f"<gap depth={d}>"
+            # You can choose whether gaps should collapse or not; usually no.
+            gap_node = Node(label=gap_lbl)
+            parent.children.append(gap_node)
+            parent = gap_node
+            stack.append((d, gap_node))
+
+    # Now parent corresponds to depth ev.depth-1
     lbl = node_label(ev, show_msg)
-    # Try to append to existing last child if same label and collapse is on
+
     if collapse and parent.children and parent.children[-1].label == lbl:
         parent.children[-1].count += 1
         parent.children[-1].events.append(ev)
