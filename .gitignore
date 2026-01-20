@@ -1,4 +1,4 @@
-/build/
 /build-example/
 /.cache/
 /.ropeproject/
+build/

@@ -42,5 +42,12 @@ target_link_libraries(depthlog INTERFACE
   $<INSTALL_INTERFACE:spdlog::spdlog>
 )
 
+target_compile_definitions(depthlog INTERFACE
+  $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE>
+  $<$<NOT:$<CONFIG:Debug>>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF>
+  # Optional:
+  SPDLOG_NO_EXCEPTIONS
+)
+
 target_compile_features(depthlog INTERFACE cxx_std_17)
 

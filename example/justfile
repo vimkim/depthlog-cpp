@@ -1,0 +1,10 @@
+build-debug-run:
+    cmake --preset debug
+    cmake --build --preset debug
+    ./build/debug/example_proj
+
+build-relwithdebinfo-run:
+    cmake --preset relwithdebinfo
+    cmake --build --preset relwithdebinfo
+    # should print nothing thanks to SPDLOG_LEVEL_OFF for release mode (NOT:$<CONFIG:Debug>)
+    ./build/relwithdebinfo/example_proj
