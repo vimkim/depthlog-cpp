@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(depthlog_example LANGUAGES CXX)
 
 include(FetchContent)
-FetchContent_Declare(depthlog SOURCE_DIR ..)
+FetchContent_Declare(depthlog SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
 FetchContent_MakeAvailable(depthlog)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
