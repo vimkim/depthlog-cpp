@@ -1,4 +1,5 @@
 option(DEPTHLOG_FETCH_SPDLOG "Fetch spdlog if not found" ON)
+option(DEPTHLOG_ENABLE "Enable depthlog logging" ON)
 
 if(DEPTHLOG_FETCH_SPDLOG)
   include(FetchContent)
@@ -42,11 +43,13 @@ target_link_libraries(depthlog INTERFACE
   $<INSTALL_INTERFACE:spdlog::spdlog>
 )
 
+# DEPTHLOG_ENABLE & Debug mode -> trace
+# DEPTHLOG_ENABLE & non-Debug mode -> info
+# DEPTHLOG_ENABLE off -> off
 target_compile_definitions(depthlog INTERFACE
-  $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE>
-  $<$<NOT:$<CONFIG:Debug>>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF>
-  # Optional:
-  SPDLOG_NO_EXCEPTIONS
+  $<$<AND:$<BOOL:${DEPTHLOG_ENABLE}>,$<CONFIG:Debug>>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE>
+  $<$<AND:$<BOOL:${DEPTHLOG_ENABLE}>,$<NOT:$<CONFIG:Debug>>>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO>
+  $<$<NOT:$<BOOL:${DEPTHLOG_ENABLE}>>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF>
 )
 
 target_compile_features(depthlog INTERFACE cxx_std_17)
